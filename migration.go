@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/influxdata/influxdb/client/v2"
-	"github.com/influxdata/influxdb/tsdb/engine/tsm1"
-	"github.com/uttamgandhi24/whisper-go/whisper"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +11,10 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/influxdata/influxdb/client/v2"
+	"github.com/influxdata/influxdb/tsdb/engine/tsm1"
+	"github.com/uttamgandhi24/whisper-go/whisper"
 )
 
 func usage() {
@@ -60,7 +61,7 @@ type MigrationData struct {
 }
 
 type TsmPoint struct {
-	key    string
+	key    []byte
 	values []tsm1.Value
 }
 
@@ -206,7 +207,7 @@ func (migrationData *MigrationData) ReadTagConfig(filename string) error {
 	return json.Unmarshal(raw, &migrationData.tagConfigs)
 }
 
-//Write migrationData.tagConfigs to file
+// Write migrationData.tagConfigs to file
 func (migrationData *MigrationData) WriteConfigFile(filename string) {
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
@@ -323,7 +324,7 @@ func (migrationData *MigrationData) PreviewMTF() {
 			mtf = &MTF{Measurement: tagConfig.Measurement, Tags: tagConfig.Tags,
 				Field: tagConfig.Field}
 		}
-		key := CreateTSMKey(mtf)
+		key := []byte(CreateTSMKey(mtf))
 		fmt.Println("\nWhisper File", wspFile, "\nTSM Key->", key)
 	}
 }
@@ -426,8 +427,8 @@ func (migrationData *MigrationData) MapWSPToTSMByShard() error {
 	return nil
 }
 
-//For every whisper file, maps whisper data points to TSM data points for
-//given time range, this is just mapping points from one Data structure to other
+// For every whisper file, maps whisper data points to TSM data points for
+// given time range, this is just mapping points from one Data structure to other
 // not writing to files
 func (migrationData *MigrationData) MapWSPToTSMByWhisperFile(from time.Time, until time.Time) []TsmPoint {
 	var tsmPoints []TsmPoint
@@ -467,7 +468,7 @@ func (migrationData *MigrationData) MapWSPToTSMByWhisperFile(from time.Time, unt
 				Field: tagConfig.Field}
 		}
 
-		tsmPoint.key = CreateTSMKey(mtf)
+		tsmPoint.key = []byte(CreateTSMKey(mtf))
 		tsmPoint.values = make([]tsm1.Value, len(wspPoints))
 		for j, wspPoint := range wspPoints {
 			tsmPoint.values[j] = tsm1.NewValue(int64(wspPoint.Timestamp), wspPoint.Value)
@@ -549,7 +550,7 @@ func (migrationData *MigrationData) WriteTSMPoints(filename string,
 	return err
 }
 
-//Create TSM Key from measurement, tags and field
+// Create TSM Key from measurement, tags and field
 func CreateTSMKey(mtf *MTF) string {
 	key := mtf.Measurement
 	if len(mtf.Tags) > 0 {
