@@ -189,7 +189,7 @@ func main() {
 		//Map WSP to TSM
 		err = migrationData.MapWSPToTSMByShard()
 		if err != nil {
-			fmt.Println("Mapping Whisper to TSM by Shard failed : %s\n", err)
+			fmt.Println("Mapping Whisper to TSM by Shard failed : ", err)
 			return
 		}
 	}
