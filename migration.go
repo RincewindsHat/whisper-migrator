@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -102,7 +101,7 @@ func main() {
 	flag.Parse()
 
 	//Handle whisper information menu
-	if *wspinfo == true {
+	if *wspinfo {
 		if *wspPath == "NULL" {
 			usage()
 		}
@@ -179,7 +178,11 @@ func main() {
 	timestart := time.Now()
 	// Create shards for given time ranges
 	if migrationData.option != "TSMW" {
-		migrationData.WriteUsingV2()
+		err = migrationData.WriteUsingV2()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	} else {
 		err := migrationData.CreateShards()
 		if err != nil {
@@ -199,7 +202,7 @@ func main() {
 
 // Read the config file and populate migrartionData.tagConfigs
 func (migrationData *MigrationData) ReadTagConfig(filename string) error {
-	raw, err := ioutil.ReadFile(filename)
+	raw, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -367,7 +370,10 @@ func (migrationData *MigrationData) CreateShards() error {
 		bp.AddPoint(pt)
 	}
 	// Write the batch
-	c.Write(bp)
+	err = c.Write(bp)
+	if err != nil {
+		return fmt.Errorf("Error while writing batch data : %s\n", err)
+	}
 
 	query := client.NewQuery("Show Shard Groups", "", "")
 	response, err := c.Query(query)
@@ -585,7 +591,7 @@ func (migrationData *MigrationData) GetMTF(wspFilename string) *MTF {
 			break
 		}
 	}
-	if filenameMatched == false {
+	if !filenameMatched {
 		return nil
 	}
 	//extract the string starting at end of the matched pattern
@@ -633,14 +639,13 @@ func (migrationData *MigrationData) PrintSummary(duration string) {
 	if migrationData.option == "TSMW" {
 		size, unit := formatSize(migrationData.tsmFileSize)
 		fmt.Printf("| Total TSM File Size     %.2f %s |\n", size, unit)
-		var percentage float64
-		percentage = float64(migrationData.whisperFileSize-migrationData.tsmFileSize) / float64(migrationData.whisperFileSize) * 100.0
+		var percentage = float64(migrationData.whisperFileSize-migrationData.tsmFileSize) / float64(migrationData.whisperFileSize) * 100.0
 		fmt.Printf("| Percentage of size reduction %.2f\n", percentage)
 	}
 	fmt.Printf("|------------------------------------|\n")
 }
 
-func (migrationData *MigrationData) WriteUsingV2() {
+func (migrationData *MigrationData) WriteUsingV2() error {
 	from := migrationData.from
 	until := migrationData.until
 	c, _ := client.NewHTTPClient(client.HTTPConfig{
@@ -655,7 +660,7 @@ func (migrationData *MigrationData) WriteUsingV2() {
 	_, err := c.Query(createDBQuery)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return nil
 	}
 
 	var bp client.BatchPoints
@@ -697,13 +702,13 @@ func (migrationData *MigrationData) WriteUsingV2() {
 				Field: tagConfig.Field}
 		}
 
-		var tags map[string]string
-		tags = make(map[string]string)
+		var tags = make(map[string]string)
+
 		for _, tagConfigTag := range mtf.Tags {
 			tags[tagConfigTag.Tagkey] = tagConfigTag.Tagvalue
 		}
-		var fields map[string]interface{}
-		fields = make(map[string]interface{})
+
+		var fields = make(map[string]interface{})
 
 		for _, wspPoint := range wspPoints {
 			fields[mtf.Field] = wspPoint.Value
@@ -711,9 +716,12 @@ func (migrationData *MigrationData) WriteUsingV2() {
 				time.Unix(int64(wspPoint.Timestamp), 0))
 			bp.AddPoint(pt)
 		}
-		c.Write(bp)
+		err = c.Write(bp)
+		if err != nil {
+			return fmt.Errorf("Error while writing batch data : %s\n", err)
+		}
 	}
-	return
+	return nil
 }
 
 func formatSize(size int64) (float64, string) {
