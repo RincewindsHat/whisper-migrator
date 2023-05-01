@@ -1,0 +1,28 @@
+[
+  {
+    "pattern": "icinga2.#HOST.host.#HOSTCHECKCOMMAND.perfdata.#MEASUREMENT.#FIELD",
+    "measurement": "#MEASUREMENT",
+    "tags": [
+      {
+        "tagkey": "hostname",
+        "tagvalue": "#HOST"
+      }
+    ],
+    "field": "#FIELD"
+  },
+  {
+    "pattern": "icinga2.#HOST.services.#SERVICENAME.#CHECKCOMMAND.perfdata.#MEASUREMENT.#FIELD",
+    "measurement": "#MEASUREMENT",
+    "tags": [
+      {
+        "tagkey": "hostname",
+        "tagvalue": "#HOST"
+      },
+      {
+        "tagkey": "service",
+        "tagvalue": "#SERVICENAME"
+      }
+    ],
+    "field": "#FIELD"
+  }
+]
